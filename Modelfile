@@ -1,0 +1,36 @@
+# Modelfile — builds the `qwen3.6-coder` agent driver for Ollama.
+#
+#   ollama create qwen3.6-coder -f Modelfile
+#
+# Driver model: Qwen 3.6-27B dense at 4-bit (~16 GB). On a 48 GB Apple Silicon
+# Mac this fits comfortably alongside a long KV cache, and it has the best
+# tool-calling reliability of anything that fits 48 GB.
+
+# --- Base ---------------------------------------------------------------------
+# Preferred: the Unsloth MTP GGUF build. It adds the `developer` role that
+# OpenCode relies on, and ships MTP (multi-token prediction) speculative
+# decoding for a 1.4–2.2x speed-up with no accuracy loss. It is stable now
+# (no longer experimental) and llama.cpp has merged MTP support.
+FROM hf.co/unsloth/Qwen3.6-27B-MTP-GGUF:Q4_K_M
+
+# Simpler fallback if you don't need the developer role / MTP — the stock
+# Ollama-library build. Comment out the FROM above and uncomment this one:
+# FROM qwen3.6:27b-q4_K_M
+
+# --- Context window -----------------------------------------------------------
+# CRITICAL: Ollama defaults num_ctx to 4096, which silently truncates the system
+# prompt + tool schemas and makes tool use fail intermittently with no error.
+# 48 GB carries the 27B at 4-bit plus a long KV cache, so give it real room.
+PARAMETER num_ctx 65536
+
+# --- Sampling -----------------------------------------------------------------
+# Low temperature for deterministic, reliable code + tool calls.
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+
+# --- MTP speculative decoding (Unsloth GGUF path) -----------------------------
+# When using the Unsloth MTP GGUF above, MTP is carried inside the GGUF and is
+# used automatically by a recent llama.cpp / Ollama (0.19+). There is no extra
+# Modelfile flag to set. To confirm it is active, watch `ollama serve` logs for
+# the MTP / draft-decoding lines, or benchmark tokens/s against the plain
+# `qwen3.6:27b` build — you should see ~1.4x+ faster generation.

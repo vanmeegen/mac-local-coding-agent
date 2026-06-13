@@ -1,0 +1,17 @@
+{
+  "name": "mac-local-coding-agent",
+  "version": "1.0.0",
+  "description": "Local-only AI coding toolkit: a dependency-free TypeScript client for a local Ollama server, a minimal terminal coding agent, and a ready-to-use OpenCode config. No cloud, no API keys, nothing leaves the machine.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "agent": "bun src/agent.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
+  }
+}
