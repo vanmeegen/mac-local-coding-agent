@@ -124,28 +124,59 @@ info "Initializing the Bun project…"
 # --- 7. start the Ollama server (needed for the model pulls) -----------------
 server_up() { curl -fsS "${OLLAMA_URL}/v1/models" >/dev/null 2>&1; }
 
+# Start a fresh `ollama serve` in the background and wait for it to answer.
+start_server() {
+  nohup ollama serve >/tmp/ollama-serve.log 2>&1 &
+  for _ in $(seq 1 30); do
+    server_up && return 0
+    sleep 1
+  done
+  return 1
+}
+
+# Kill any running server and start a clean one. A stale/wedged `ollama serve`
+# accepts a pull request but then drops the download stream, surfacing as
+# "Error: EOF" with no progress — restarting the server clears that state.
+restart_server() {
+  warn "Restarting the Ollama server…"
+  pkill -f "ollama serve" 2>/dev/null || true
+  sleep 2
+  start_server || die "Ollama server did not come back up. Check /tmp/ollama-serve.log"
+  ok "Ollama server restarted at ${OLLAMA_URL}."
+}
+
 if server_up; then
   ok "Ollama server already running."
 else
   info "Starting Ollama server in the background…"
-  # Prefer the brew service if available; otherwise just run `ollama serve`.
-  nohup ollama serve >/tmp/ollama-serve.log 2>&1 &
-  for _ in $(seq 1 30); do
-    server_up && break
-    sleep 1
-  done
-  server_up || die "Ollama server did not come up. Check /tmp/ollama-serve.log"
+  start_server || die "Ollama server did not come up. Check /tmp/ollama-serve.log"
   ok "Ollama server is up at ${OLLAMA_URL}."
 fi
 
+# Pull a model, retrying once after a server restart. The first attempt can fail
+# with "Error: EOF" when an already-running server is in a wedged state; a fresh
+# server almost always succeeds. Returns non-zero only if both attempts fail.
+pull_model() {
+  local model="$1"
+  ollama pull "$model" && return 0
+  warn "Pull of '$model' failed (often a stale server / EOF). Retrying once…"
+  restart_server
+  ollama pull "$model"
+}
+
 # --- 8. driver model (~16 GB) ------------------------------------------------
-has_model() { ollama list 2>/dev/null | awk '{print $1}' | grep -qx "$1"; }
+# Match a model by name, tolerating the implicit ":latest" tag that `ollama list`
+# shows for an untagged build (e.g. "qwen3.6-coder" is listed as
+# "qwen3.6-coder:latest"). Without this, the driver is re-pulled every run.
+has_model() {
+  ollama list 2>/dev/null | awk '{print $1}' | grep -qxE "$1(:latest)?"
+}
 
 if has_model "$DRIVER_NAME"; then
   ok "Driver model '$DRIVER_NAME' already built."
 else
   info "Pulling driver base ($DRIVER_BASE, ~16 GB)…"
-  ollama pull "$DRIVER_BASE" || die "Failed to pull $DRIVER_BASE"
+  pull_model "$DRIVER_BASE" || die "Failed to pull $DRIVER_BASE (after a server-restart retry). Check /tmp/ollama-serve.log"
   info "Building '$DRIVER_NAME' from Modelfile…"
   ollama create "$DRIVER_NAME" -f "$REPO_DIR/Modelfile" || die "ollama create failed."
   ok "Built $DRIVER_NAME."
@@ -157,7 +188,7 @@ if [[ "$INSTALL_MOE" == "1" ]]; then
     ok "MoE model '$MOE_MODEL' already present."
   else
     info "Pulling MoE fast gear ($MOE_MODEL)…"
-    ollama pull "$MOE_MODEL" || warn "Failed to pull $MOE_MODEL (skipping; agent still works on dense)."
+    pull_model "$MOE_MODEL" || warn "Failed to pull $MOE_MODEL (skipping; agent still works on dense)."
   fi
 else
   info "Skipping MoE model (INSTALL_MOE=0)."
