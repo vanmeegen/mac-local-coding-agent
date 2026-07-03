@@ -29,7 +29,7 @@ export type ModelKey = "dense" | "moe";
 
 export const MODELS: Readonly<Record<ModelKey, string>> = {
   dense: "qwen3.6-coder", // 27B dense, the reliable agent driver
-  moe: "qwen3.6:35b-a3b", // 35B-A3B MoE (3B active), the fast gear
+  moe: "qwen3.6:35b-a3b-coding-mxfp8", // 35B-A3B MoE (3B active), coding-tuned mxfp8, the fast gear
 };
 
 export interface LocalLLMConfig {

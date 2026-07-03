@@ -67,7 +67,7 @@ startup.
 | Role      | Model             | Notes                                                       |
 | --------- | ----------------- | ----------------------------------------------------------- |
 | Driver    | `qwen3.6-coder`   | **Default.** 27B dense @ 4-bit (~16 GB). Built from the Unsloth MTP GGUF (adds the `developer` role OpenCode needs + MTP speculative decoding). Best tool-calling reliability that fits 48 GB. |
-| Fast gear | `qwen3.6:35b-a3b` | MoE, 3B active. Faster decode for simple edits, but less reliable tool-calling — switch to it only when you want speed over reliability. |
+| Fast gear | `qwen3.6:35b-a3b-coding-mxfp8` | MoE, 3B active, coding-tuned mxfp8 quant (37 GB). Faster decode than the dense driver (~61 tok/s vs ~15 tok/s measured on M5 Pro 48 GB) with noticeably better code quality than the plain `q4_K_M`-class default tag — still less reliable tool-calling than dense, so switch to it only when you want speed over reliability. |
 
 There is no dedicated small/utility model: **`qwen3.6:8b` does not exist** (the
 3.6 series only shipped 27B + 35B-A3B), so OpenCode just reuses the main model
@@ -102,19 +102,29 @@ no — stick with Ollama:
   emits explicit `<tool_call>` markers and sidesteps the bug entirely.
 - **oMLX** is a nice menu-bar wrapper (SSD-tiered KV cache cutting long-session
   TTFT from 30-90s to 1-3s, a big model catalog browsable in-app, OpenAI +
-  Anthropic endpoints) but is built on the same mlx-lm parser stack, so it
-  inherits the same non-Coder tool-calling gap. No published Ollama-comparison
-  numbers either. Digging into its issue tracker (532 open, vs. Ollama's 2,434
-  on a much larger project) turned up 8 open tool-calling reliability issues —
-  silently dropped tool calls, parser mismatches on non-standard formats,
-  scheduler crashes under load — plus one that lands directly on this repo's
-  setup: [jundot/omlx#1966](https://github.com/jundot/omlx/issues/1966),
-  "Qwen3.6 false-positive mid-system preservation with leading developer
-  block," which is exactly the `developer`-role mechanism the Unsloth Modelfile
-  relies on for OpenCode tool use. There's also a report of Qwen3.6-35B failing
-  under one of oMLX's batched-execution engines while working under another.
-  Worth trialling on a second port for its TTFT win on long sessions, but not
-  a replacement for the driver model yet.
+  Anthropic endpoints). It does *not* fully inherit bare mlx-lm's non-Coder
+  tool-calling gap — its engine auto-selects a `qwen3_coder`-style parser for
+  plain Qwen3.5/3.6 checkpoints too (see the startup log in
+  [jundot/omlx#906](https://github.com/jundot/omlx/issues/906)), so it can
+  tool-call against the plain Unsloth MLX quant without needing the
+  Coder-flavored build. The `developer`-role issue this repo previously hit —
+  [jundot/omlx#1966](https://github.com/jundot/omlx/issues/1966), "Qwen3.6
+  false-positive mid-system preservation with leading developer block" (same
+  root cause as [#1908](https://github.com/jundot/omlx/issues/1908) and
+  [#1923](https://github.com/jundot/omlx/issues/1923): oMLX's
+  `/v1/responses` adapter merges leading `system`/`developer` messages in a
+  way that violates Qwen3.6's strict "system message only at position 0"
+  chat template) — **has a confirmed one-line fix**: set
+  `server.preserve_mid_system_cache: false` in `~/.omlx/settings.json` and
+  restart oMLX. That said, oMLX's issue tracker (655 open, vs. Ollama's 2,434
+  on a much larger project) still has other open tool-calling reliability
+  issues unrelated to this fix — silently dropped tool calls, parser
+  mismatches on non-standard formats, scheduler crashes under load, and a
+  report of Qwen3.6-35B failing under one of oMLX's batched-execution engines
+  while working under another. No published Ollama-comparison numbers either.
+  Worth trialling on a second port (default 8000) for its TTFT win on long
+  sessions with the fix applied, but not a replacement for the Ollama driver
+  model yet.
 - **vllm-mlx**'s big win is continuous batching for many concurrent requests —
   irrelevant for one person driving one agent session locally.
 - **Rapid-MLX** is the most credible throughput claim (its own benchmarks show

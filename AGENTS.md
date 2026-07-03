@@ -27,7 +27,7 @@ machine. Keep it that way.
 | Role        | Model              | When to use                                            |
 | ----------- | ------------------ | ------------------------------------------------------ |
 | Driver      | `qwen3.6-coder`    | Default. 27B dense @ 4-bit — best tool-calling reliability that fits 48 GB. |
-| Fast gear   | `qwen3.6:35b-a3b`  | MoE (3B active). Faster decode for simple edits; less reliable tool-calling. |
+| Fast gear   | `qwen3.6:35b-a3b-coding-mxfp8` | MoE (3B active), coding-tuned mxfp8. Faster decode for simple edits; less reliable tool-calling. |
 
 There is **no dedicated small/utility model** — `qwen3.6:8b` does not exist
 (Qwen 3.6 only shipped 27B + 35B-A3B). Pick the model per task: in the agent use
