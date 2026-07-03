@@ -1,6 +1,6 @@
 /**
  * local-llm.ts — a dependency-free client for a local, OpenAI-compatible LLM
- * server (Ollama 0.19+ at http://localhost:11434/v1). No SDK, no cloud, no API
+ * server (Ollama 0.30+ at http://localhost:11434/v1). No SDK, no cloud, no API
  * keys leaving the machine — just Bun's native `fetch`.
  *
  * NOTE: if you already have code built on the official `openai` SDK, you don't

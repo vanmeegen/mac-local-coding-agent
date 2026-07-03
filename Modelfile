@@ -30,7 +30,7 @@ PARAMETER top_p 0.9
 
 # --- MTP speculative decoding (Unsloth GGUF path) -----------------------------
 # When using the Unsloth MTP GGUF above, MTP is carried inside the GGUF and is
-# used automatically by a recent llama.cpp / Ollama (0.19+). There is no extra
+# used automatically by a recent llama.cpp / Ollama (0.30+). There is no extra
 # Modelfile flag to set. To confirm it is active, watch `ollama serve` logs for
 # the MTP / draft-decoding lines, or benchmark tokens/s against the plain
 # `qwen3.6:27b` build — you should see ~1.4x+ faster generation.
