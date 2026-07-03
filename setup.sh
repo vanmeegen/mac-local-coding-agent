@@ -22,7 +22,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OLLAMA_URL="http://localhost:11434"
 DRIVER_BASE="hf.co/unsloth/Qwen3.6-27B-MTP-GGUF:Q4_K_M"
 DRIVER_NAME="qwen3.6-coder"
-MOE_MODEL="qwen3.6:35b-a3b"
+MOE_MODEL="qwen3.6:35b-a3b-coding-mxfp8"
 
 # --- pretty logging ----------------------------------------------------------
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
