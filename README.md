@@ -100,10 +100,21 @@ no — stick with Ollama:
   [ml-explore/mlx-lm#1293](https://github.com/ml-explore/mlx-lm/issues/1293)).
   This is exactly why the Modelfile pins the Unsloth **MTP/Coder** GGUF — it
   emits explicit `<tool_call>` markers and sidesteps the bug entirely.
-- **oMLX** is a nice menu-bar wrapper (SSD-tiered KV cache, OpenAI + Anthropic
-  endpoints) but is built on the same mlx-lm parser stack, so it inherits the
-  same non-Coder tool-calling gap. No published Ollama-comparison numbers
-  either.
+- **oMLX** is a nice menu-bar wrapper (SSD-tiered KV cache cutting long-session
+  TTFT from 30-90s to 1-3s, a big model catalog browsable in-app, OpenAI +
+  Anthropic endpoints) but is built on the same mlx-lm parser stack, so it
+  inherits the same non-Coder tool-calling gap. No published Ollama-comparison
+  numbers either. Digging into its issue tracker (532 open, vs. Ollama's 2,434
+  on a much larger project) turned up 8 open tool-calling reliability issues —
+  silently dropped tool calls, parser mismatches on non-standard formats,
+  scheduler crashes under load — plus one that lands directly on this repo's
+  setup: [jundot/omlx#1966](https://github.com/jundot/omlx/issues/1966),
+  "Qwen3.6 false-positive mid-system preservation with leading developer
+  block," which is exactly the `developer`-role mechanism the Unsloth Modelfile
+  relies on for OpenCode tool use. There's also a report of Qwen3.6-35B failing
+  under one of oMLX's batched-execution engines while working under another.
+  Worth trialling on a second port for its TTFT win on long sessions, but not
+  a replacement for the driver model yet.
 - **vllm-mlx**'s big win is continuous batching for many concurrent requests —
   irrelevant for one person driving one agent session locally.
 - **Rapid-MLX** is the most credible throughput claim (its own benchmarks show
