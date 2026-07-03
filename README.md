@@ -17,7 +17,7 @@ Everything talks to Ollama's OpenAI-compatible endpoint at
 ## One-shot install
 
 On a fresh Mac (Apple Silicon), clone and run the bootstrap script. It installs
-Homebrew (if needed), Bun, Ollama 0.19+, pulls the models, builds the agent
+Homebrew (if needed), Bun, Ollama 0.30+, pulls the models, builds the agent
 model, installs OpenCode, and copies the config into place:
 
 ```sh
@@ -82,13 +82,58 @@ and you pick per task.
   sets `65536`.
 - **Dense 27B is the reliable default; MoE is the fast gear.** Reach for the MoE
   only when tool calls are simple and you want throughput.
-- **Ollama 0.19+ is MLX-accelerated on M5.** It uses the MLX backend and the GPU
-  Neural Accelerators — fast *and* stable for long agentic sessions.
+- **Ollama 0.30+ is MLX-accelerated on M5.** It uses the MLX backend and the GPU
+  Neural Accelerators — fast *and* stable for long agentic sessions. 0.19 was
+  just the first MLX preview (March 2026); 0.30+ has since hardened the MLX
+  runner and picked up the M5 matmul kernel, so keep Ollama current
+  (`brew upgrade ollama`).
 
-## Optional: max-throughput upgrade
+## Why Ollama over a "raw" MLX server
 
-If you ever want more raw throughput than Ollama gives, `vllm-mlx` is an optional
-upgrade path — same local-only, OpenAI-compatible idea, higher ceiling.
+Several MLX-native servers now exist (**oMLX**, **Rapid-MLX**, **vllm-mlx**), and
+it's worth asking whether one beats Ollama's own MLX backend. As of mid-2026,
+no — stick with Ollama:
+
+- **Bare `mlx_lm.server` currently can't tool-call with stock Qwen3.5/3.6.** Its
+  parser only recognizes the `Coder`-flavored chat template; the plain
+  27B/35B-A3B templates aren't auto-detected (open upstream bug,
+  [ml-explore/mlx-lm#1293](https://github.com/ml-explore/mlx-lm/issues/1293)).
+  This is exactly why the Modelfile pins the Unsloth **MTP/Coder** GGUF — it
+  emits explicit `<tool_call>` markers and sidesteps the bug entirely.
+- **oMLX** is a nice menu-bar wrapper (SSD-tiered KV cache cutting long-session
+  TTFT from 30-90s to 1-3s, a big model catalog browsable in-app, OpenAI +
+  Anthropic endpoints) but is built on the same mlx-lm parser stack, so it
+  inherits the same non-Coder tool-calling gap. No published Ollama-comparison
+  numbers either. Digging into its issue tracker (532 open, vs. Ollama's 2,434
+  on a much larger project) turned up 8 open tool-calling reliability issues —
+  silently dropped tool calls, parser mismatches on non-standard formats,
+  scheduler crashes under load — plus one that lands directly on this repo's
+  setup: [jundot/omlx#1966](https://github.com/jundot/omlx/issues/1966),
+  "Qwen3.6 false-positive mid-system preservation with leading developer
+  block," which is exactly the `developer`-role mechanism the Unsloth Modelfile
+  relies on for OpenCode tool use. There's also a report of Qwen3.6-35B failing
+  under one of oMLX's batched-execution engines while working under another.
+  Worth trialling on a second port for its TTFT win on long sessions, but not
+  a replacement for the driver model yet.
+- **vllm-mlx**'s big win is continuous batching for many concurrent requests —
+  irrelevant for one person driving one agent session locally.
+- **Rapid-MLX** is the most credible throughput claim (its own benchmarks show
+  ~2.4x over Ollama on Qwen3.5-27B, with a Hermes tool parser and malformed-
+  output recovery) — but that comparison number predates Ollama's current MLX
+  backend, so it's likely overstated today. If you want to chase more
+  throughput, benchmark Rapid-MLX yourself against current Ollama (same model,
+  same quant, same prompts) and stress-test tool-calling over a long session
+  before switching — quantized MLX servers have been reported to degrade tool
+  calls after 5-10 rounds.
+- **At 27B+, the framework gap shrinks anyway.** The dramatic "MLX is 2-4x
+  Ollama" numbers floating around are mostly measured on small (0.6B-8B)
+  models where kernel overhead dominates. At 27B/35B, Apple Silicon is memory-
+  bandwidth bound, so Ollama-MLX and other MLX servers converge.
+
+Net: Ollama's MLX backend already gets you native Apple Silicon acceleration
+*and* the most mature, most-issue-tracked tool-calling story for these model
+sizes. Revisit this if Rapid-MLX or oMLX close the Coder-template tool-calling
+gap with published, apples-to-apples benchmarks against current Ollama.
 
 ## License
 

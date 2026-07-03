@@ -34,8 +34,9 @@ There is **no dedicated small/utility model** — `qwen3.6:8b` does not exist
 `/model dense|moe`, in OpenCode use `/models`.
 
 Notes:
-- Ollama 0.19+ is MLX-accelerated on Apple Silicon — fast and stable for long
-  agentic sessions.
+- Ollama 0.30+ is MLX-accelerated on Apple Silicon — fast and stable for long
+  agentic sessions. (0.19 was the first MLX preview; 0.30+ has since hardened
+  the MLX runner and picked up the M5 Neural Accelerator matmul kernel.)
 - `num_ctx` must be raised (we set 65536 in the Modelfile). Ollama's 4K default
   silently breaks tool use.
 - `tools: true` is required per-model in `opencode.json` or tools never fire.

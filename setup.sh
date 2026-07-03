@@ -3,7 +3,7 @@
 # setup.sh — one-shot bootstrap for the local-only coding toolkit.
 #
 # On a fresh Apple Silicon Mac:  git clone … && cd … && ./setup.sh
-# Installs Homebrew (if needed), Bun, Ollama 0.19+, pulls/builds the models,
+# Installs Homebrew (if needed), Bun, Ollama 0.30+, pulls/builds the models,
 # installs OpenCode, and copies the config into place — leaving everything
 # ready to run.
 #
@@ -70,18 +70,22 @@ fi
 command -v bun >/dev/null 2>&1 || die "Bun install failed."
 ok "Bun: $(bun --version)"
 
-# --- 4. Ollama (>= 0.19) -----------------------------------------------------
+# --- 4. Ollama (>= 0.30) -----------------------------------------------------
+# 0.19 was the first MLX-backend preview (March 2026); 0.30+ carries several
+# rounds of MLX hardening since then (M5 Neural Accelerator matmul kernel,
+# snapshotting for reliability, MTP tuning) and is the version this setup is
+# validated against.
 need_ollama_install=1
 if command -v ollama >/dev/null 2>&1; then
   ver="$(ollama --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)"
   if [[ -n "$ver" ]]; then
-    # Compare major.minor against 0.19.
+    # Compare major.minor against 0.30.
     major="${ver%%.*}"; rest="${ver#*.}"; minor="${rest%%.*}"
-    if (( major > 0 )) || (( major == 0 && minor >= 19 )); then
+    if (( major > 0 )) || (( major == 0 && minor >= 30 )); then
       need_ollama_install=0
-      ok "Ollama $ver (>= 0.19)."
+      ok "Ollama $ver (>= 0.30)."
     else
-      warn "Ollama $ver is too old (< 0.19). Upgrading…"
+      warn "Ollama $ver is too old (< 0.30). Upgrading…"
       brew upgrade ollama || warn "brew upgrade failed; you may need to update manually."
       need_ollama_install=0
     fi
