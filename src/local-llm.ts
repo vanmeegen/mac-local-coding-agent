@@ -1,19 +1,19 @@
 /**
  * local-llm.ts — a dependency-free client for a local, OpenAI-compatible LLM
- * server (Ollama 0.30+ at http://localhost:11434/v1). No SDK, no cloud, no API
- * keys leaving the machine — just Bun's native `fetch`.
+ * server (oMLX at http://localhost:8000/v1; Ollama at :11434/v1 also works).
+ * No SDK, no cloud, no API keys leaving the machine — just Bun's native `fetch`.
  *
  * NOTE: if you already have code built on the official `openai` SDK, you don't
  * need this client at all — just point that SDK at the same endpoint:
  *
- *     OPENAI_BASE_URL=http://localhost:11434/v1  OPENAI_API_KEY=ollama
+ *     OPENAI_BASE_URL=http://localhost:8000/v1  OPENAI_API_KEY=omlx
  *
  * This file exists for the zero-dependency path.
  */
 
 // --- Types -------------------------------------------------------------------
 
-/** OpenAI-style roles. `developer` is supported by the Unsloth Qwen3.6 build. */
+/** OpenAI-style roles. oMLX folds a leading `developer` message into the system turn. */
 export type Role = "system" | "developer" | "user" | "assistant";
 
 export interface Message {
@@ -24,20 +24,21 @@ export interface Message {
 /** A prompt is either a bare string (treated as a user turn) or full messages. */
 export type Input = string | readonly Message[];
 
-/** Logical model selector → resolved Ollama model tag. */
-export type ModelKey = "dense" | "moe";
+/** Logical model selector → oMLX model directory name (see setup.sh). */
+export type ModelKey = "fast" | "quality" | "moe";
 
 export const MODELS: Readonly<Record<ModelKey, string>> = {
-  dense: "qwen3.6-coder", // 27B dense, the reliable agent driver
-  moe: "qwen3.6:35b-a3b-coding-mxfp8", // 35B-A3B MoE (3B active), coding-tuned mxfp8, the fast gear
+  fast: "Qwen3.8-27B-oQ4e-mtp", // 27B dense, oQ4 + Lightning MTP — the driver
+  quality: "Qwen3.8-27B-oQ6e-mtp", // same model at oQ6, near-lossless, ~10% slower decode
+  moe: "Qwen3.6-35B-A3B-oQ4e-mtp", // 35B-A3B MoE (3B active) + MTP — fastest decode, weaker tools
 };
 
 export interface LocalLLMConfig {
-  /** OpenAI-compatible base URL. Default: http://localhost:11434/v1 */
+  /** OpenAI-compatible base URL. Default: http://localhost:8000/v1 (oMLX) */
   readonly baseURL?: string;
-  /** API key. Ollama ignores it but the OpenAI wire format wants one. */
+  /** API key. oMLX/Ollama ignore it locally, but the OpenAI wire format wants one. */
   readonly apiKey?: string;
-  /** Initial model tag. Default: MODELS.dense */
+  /** Initial model tag. Default: MODELS.fast */
   readonly model?: string;
   readonly temperature?: number;
   readonly topP?: number;
@@ -89,11 +90,14 @@ export class LocalLLMError extends Error {
 
 // --- Helpers -----------------------------------------------------------------
 
+// Sampling follows the Qwen3.8 model card for thinking mode (temperature 1.0,
+// top_p 0.95, top_k 20). Lower temperatures do NOT make tool calls more reliable
+// on Qwen3.8 and reduce MTP draft acceptance; leave these unless you measure.
 const DEFAULTS = {
-  baseURL: "http://localhost:11434/v1",
-  apiKey: "ollama",
-  temperature: 0.2,
-  topP: 0.9,
+  baseURL: "http://localhost:8000/v1",
+  apiKey: "omlx",
+  temperature: 1.0,
+  topP: 0.95,
   timeoutMs: 600_000,
   retries: 3,
 } as const;
@@ -144,10 +148,10 @@ export class LocalLLM {
     this.topP = config.topP ?? DEFAULTS.topP;
     this.timeoutMs = config.timeoutMs ?? DEFAULTS.timeoutMs;
     this.retries = config.retries ?? DEFAULTS.retries;
-    this.model = config.model ?? MODELS.dense;
+    this.model = config.model ?? MODELS.fast;
   }
 
-  /** Chainable model switch: `llm.use("moe").complete(...)`. */
+  /** Chainable model switch: `llm.use("quality").complete(...)`. */
   use(key: ModelKey): this {
     this.model = MODELS[key];
     return this;

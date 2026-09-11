@@ -1,38 +1,43 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama (local)",
-      "options": {
-        "baseURL": "http://localhost:11434/v1"
-      },
-      "models": {
-        "qwen3.6-coder": {
-          "name": "Qwen3.6 27B (dense, reliable driver)",
-          "tools": true
-        },
-        "qwen3.6:35b-a3b-coding-mxfp8": {
-          "name": "Qwen3.6 35B-A3B (MoE, coding-tuned mxfp8, fast gear)",
-          "tools": true
-        }
-      }
-    },
     "omlx": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "oMLX (local, experimental)",
+      "name": "oMLX (local, MLX + Lightning MTP)",
       "options": {
         "baseURL": "http://localhost:8000/v1"
       },
       "models": {
-        "unsloth-Qwen3.6-27B-UD-MLX-4bit": {
-          "name": "Qwen3.6 27B MLX 4-bit (oMLX, experimental)",
+        "Qwen3.8-27B-oQ4e-mtp": {
+          "name": "Qwen3.8 27B oQ4e + MTP (driver: fast, reliable tools)",
+          "tools": true
+        },
+        "Qwen3.8-27B-oQ6e-mtp": {
+          "name": "Qwen3.8 27B oQ6e + MTP (quality gear, ~10% slower)",
+          "tools": true
+        },
+        "Qwen3.6-35B-A3B-oQ4e-mtp": {
+          "name": "Qwen3.6 35B-A3B MoE + MTP (speed gear, weaker tools)",
+          "tools": true
+        }
+      }
+    },
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (fallback, no prefix cache on Qwen)",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "qwen3.8-coder": {
+          "name": "Qwen3.8 27B MTP GGUF (Ollama fallback)",
           "tools": true
         }
       }
     }
   },
-  "model": "ollama/qwen3.6-coder",
+  "model": "omlx/Qwen3.8-27B-oQ4e-mtp",
+  "small_model": "omlx/Qwen3.8-27B-oQ4e-mtp",
   "permission": {
     "edit": "allow",
     "webfetch": "allow",

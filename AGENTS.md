@@ -4,8 +4,9 @@ Guidance for AI coding agents (and humans) working in this repo.
 
 ## What this is
 
-A **local-only, $0** AI coding toolkit. Everything runs against Ollama on
-`http://localhost:11434/v1`. No cloud providers, no API keys, nothing leaves the
+A **local-only, $0** AI coding toolkit. Everything runs against oMLX on
+`http://localhost:8000/v1` (OpenAI-compatible) / `http://localhost:8000/v1/messages`
+(Anthropic-compatible). No cloud providers, no API keys, nothing leaves the
 machine. Keep it that way.
 
 ## Stack & conventions
@@ -18,27 +19,29 @@ machine. Keep it that way.
   unless explicitly asked — this project ships with none.
 - **Errors:** Handle them explicitly. Surface failures with clear messages;
   don't swallow exceptions silently.
+- **Shell:** `setup.sh` and `bench.sh` must stay `bash -n` clean, idempotent,
+  and must never require `sudo` (print the command instead).
 - **Frontend (when applicable):** React + Tailwind CSS, deploy target GitHub Pages.
 - **Files:** When emitting a file, output the **complete** file with its path on
   the code-fence info line, e.g. ` ```ts src/foo.ts `.
 
 ## Local model map
 
-| Role        | Model              | When to use                                            |
-| ----------- | ------------------ | ------------------------------------------------------ |
-| Driver      | `qwen3.6-coder`    | Default. 27B dense @ 4-bit — best tool-calling reliability that fits 48 GB. |
-| Fast gear   | `qwen3.6:35b-a3b-coding-mxfp8` | MoE (3B active), coding-tuned mxfp8. Faster decode for simple edits; less reliable tool-calling. |
-
-There is **no dedicated small/utility model** — `qwen3.6:8b` does not exist
-(Qwen 3.6 only shipped 27B + 35B-A3B). Pick the model per task: in the agent use
-`/model dense|moe`, in OpenCode use `/models`.
+| Key (`/model`) | oMLX model id | When to use |
+| --- | --- | --- |
+| `fast` | `Qwen3.8-27B-oQ4e-mtp` | Default driver. 27B dense, oQ4 + Lightning MTP — best tool-calling that fits 48 GB. |
+| `quality` | `Qwen3.8-27B-oQ6e-mtp` | Same model, near-lossless, ~10 % slower. Hard refactors. (`INSTALL_QUALITY=1`) |
+| `moe` | `Qwen3.6-35B-A3B-oQ4e-mtp` | MoE, 3B active + MTP. 2–3x decode speed, weaker tools. Simple edits. (`INSTALL_MOE=1`) |
 
 Notes:
-- Ollama 0.30+ is MLX-accelerated on Apple Silicon — fast and stable for long
-  agentic sessions. (0.19 was the first MLX preview; 0.30+ has since hardened
-  the MLX runner and picked up the M5 Neural Accelerator matmul kernel.)
-- `num_ctx` must be raised (we set 65536 in the Modelfile). Ollama's 4K default
-  silently breaks tool use.
+- Server = **oMLX 0.6.4+** (brew tap `jundot/omlx`). Lightning MTP, the
+  RAM+SSD prefix cache and Qwen-recommended sampling are configured per model in
+  `~/.omlx/model_settings.json` by `setup.sh`; the admin UI is at `/admin`.
+- **Do not lower the temperature** for "reliability": Qwen 3.8's tool calls are
+  stable at the model-card defaults (1.0 / 0.95 / top_k 20) and MTP acceptance
+  drops at low temperature.
+- Ollama is a **fallback only** (`INSTALL_OLLAMA_FALLBACK=1`): since 0.32 it
+  re-prefills the whole prompt on every request for Qwen's hybrid attention.
 - `tools: true` is required per-model in `opencode.json` or tools never fire.
 
 ## Security & git hygiene
