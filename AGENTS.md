@@ -34,7 +34,7 @@ machine. Keep it that way.
 | `moe` | `Qwen3.6-35B-A3B-oQ4e-mtp` | MoE, 3B active + MTP. 2–3x decode speed, weaker tools. Simple edits. (`INSTALL_MOE=1`) |
 
 Notes:
-- Server = **oMLX 0.6.4+** (brew tap `jundot/omlx`). Lightning MTP, the
+- Server = **oMLX 0.7.0+** (brew tap `jundot/omlx`). Lightning MTP, the
   RAM+SSD prefix cache and Qwen-recommended sampling are configured per model in
   `~/.omlx/model_settings.json` by `setup.sh`; the admin UI is at `/admin`.
 - **Do not lower the temperature** for "reliability": Qwen 3.8's tool calls are

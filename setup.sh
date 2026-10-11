@@ -3,7 +3,7 @@
 # setup.sh — one-shot bootstrap for the local-only coding toolkit (M5-era edition).
 #
 # On a fresh Apple Silicon Mac:  git clone … && cd … && ./setup.sh
-# Installs Homebrew (if needed), Bun, the Hugging Face CLI, oMLX 0.6.4+,
+# Installs Homebrew (if needed), Bun, the Hugging Face CLI, oMLX 0.7.0+,
 # OpenCode, downloads the Qwen 3.8 MTP checkpoint(s) into oMLX's model
 # directory, writes the oMLX server + per-model settings (Lightning MTP on,
 # 128K context, Qwen-recommended sampling), restarts oMLX and copies the
@@ -18,6 +18,7 @@
 #   INSTALL_OPENCODE=0       skip installing OpenCode / copying the config
 #   INSTALL_OLLAMA_FALLBACK=1  also set up Ollama 0.34+ with qwen3.8-coder (fallback only)
 #   OMLX_CONTEXT=131072      per-model max context window for oMLX (tokens)
+#   OMLX_SSD_CACHE=50GB      cap for oMLX's on-disk prefix cache ("auto" = half the free disk)
 #
 set -euo pipefail
 
@@ -26,12 +27,13 @@ INSTALL_MOE="${INSTALL_MOE:-0}"
 INSTALL_OPENCODE="${INSTALL_OPENCODE:-1}"
 INSTALL_OLLAMA_FALLBACK="${INSTALL_OLLAMA_FALLBACK:-0}"
 OMLX_CONTEXT="${OMLX_CONTEXT:-131072}"
+OMLX_SSD_CACHE="${OMLX_SSD_CACHE:-50GB}"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OMLX_URL="http://localhost:8000"
 OMLX_HOME="$HOME/.omlx"
 OMLX_MODEL_DIR="$OMLX_HOME/models"
-OMLX_MIN_VERSION="0.6.4"
+OMLX_MIN_VERSION="0.7.0"
 
 # oMLX-native checkpoints (oQ = oMLX mixed-precision quant, "-mtp" = the
 # model's own multi-token-prediction head kept for Lightning MTP).
@@ -111,10 +113,13 @@ fi
 command -v hf >/dev/null 2>&1 || die "hf not on PATH after install."
 ok "hf: $(hf version 2>/dev/null | head -1 || echo installed)"
 
-# --- 5. oMLX (>= 0.6.4) ------------------------------------------------------
+# --- 5. oMLX (>= 0.7.0) ------------------------------------------------------
 # 0.6.x brings Lightning MTP (depth-k native multi-token prediction) for the
 # Qwen 3.5/3.6/3.8 family, NAX GPU kernels for M5, TurboQuant KV, and the
-# tiered RAM+SSD prefix cache that makes 30k-token agent turns cheap.
+# tiered RAM+SSD prefix cache that makes 30k-token agent turns cheap. 0.7.0
+# makes MTP verify cheaper on Qwen3.8-27B (biggest gain at long context), stops
+# re-prefilling stable system/tool prefixes, and keeps the GPU warm between
+# requests (server.gpu_keep_warm_interval, default 0.5 s — no need to set it).
 if ! brew tap | grep -qx "jundot/omlx"; then
   info "Adding the oMLX tap…"
   brew tap jundot/omlx https://github.com/jundot/omlx
@@ -196,10 +201,12 @@ fi
 #     merges them in a way Qwen's "system only at position 0" template rejects
 #     (jundot/omlx#1966, #1908, #1923).
 #   cache.enabled=true — tiered RAM+SSD prefix cache (the whole point).
+#   cache.ssd_cache_max_size — capped (default 50GB); "auto" grows to half the
+#     free disk, which reached ~46 GB within a few weeks of agent use.
 info "Writing oMLX server settings ($OMLX_HOME/settings.json)…"
-python3 - "$OMLX_HOME/settings.json" "$OMLX_MODEL_DIR" "$OMLX_CONTEXT" <<'PY'
+python3 - "$OMLX_HOME/settings.json" "$OMLX_MODEL_DIR" "$OMLX_CONTEXT" "$OMLX_SSD_CACHE" <<'PY'
 import json, os, sys
-path, model_dir, ctx = sys.argv[1], sys.argv[2], int(sys.argv[3])
+path, model_dir, ctx, ssd_max = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 data = {}
 if os.path.exists(path):
     with open(path, encoding="utf-8") as f:
@@ -214,6 +221,7 @@ dirs = mdl.setdefault("model_dirs", [])
 if model_dir not in dirs: dirs.insert(0, model_dir)
 cache = data.setdefault("cache", {})
 cache["enabled"] = True
+cache["ssd_cache_max_size"] = ssd_max
 samp = data.setdefault("sampling", {})
 samp["max_context_window"] = max(int(samp.get("max_context_window") or 0), ctx)
 samp["max_tokens"] = max(int(samp.get("max_tokens") or 0), 32768)

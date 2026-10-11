@@ -20,7 +20,7 @@ is how Claude Code / the Claude Agent SDK connect — see below).
 ## One-shot install
 
 On a fresh Mac (Apple Silicon), clone and run the bootstrap script. It installs
-Homebrew (if needed), Bun, the Hugging Face CLI, **oMLX 0.6.4+**, OpenCode,
+Homebrew (if needed), Bun, the Hugging Face CLI, **oMLX 0.7.0+**, OpenCode,
 downloads the model, writes the oMLX settings (Lightning MTP on, 128K context,
 Qwen-recommended sampling) and restarts the server:
 
@@ -164,12 +164,14 @@ Accelerators (needs macOS 26.2+).
 
 <!-- BENCH:START -->
 Measured with `./bench.sh` on this repo's reference machine (MacBook Pro
-M5 Pro 18-core, 48 GB, macOS 26.6.2, oMLX 0.6.4, Lightning MTP adaptive,
-8.2k-token prompt, 256 generated tokens, no `iogpu.wired_limit_mb` tweak):
+M5 Pro 18-core, 48 GB, macOS 26.6.2, Lightning MTP adaptive, 8.2k-token
+prompt, 256 generated tokens, no `iogpu.wired_limit_mb` tweak). Rows are oMLX
+0.6.4 unless marked:
 
 | Model | Cold prefill | Cached prefill (same prefix) | Decode |
 | --- | --- | --- | --- |
-| `Qwen3.8-27B-oQ4e-mtp` | 458 tok/s (18.0 s) | 0.57 s (32x) | **30.9–31.9 tok/s** |
+| `Qwen3.8-27B-oQ4e-mtp`, oMLX 0.7.0 | 460–469 tok/s (17.6 s) | 0.34 s (52x) | **37.3–43.1 tok/s** |
+| `Qwen3.8-27B-oQ4e-mtp` | 458 tok/s (18.0 s) | 0.57 s (32x) | 30.9–33.8 tok/s |
 | `Qwen3.8-27B-oQ4e-mtp`, MTP off | — | — | 16.5 tok/s |
 | `Qwen3.8-27B-oQ6e-mtp` | 412 tok/s (20.0 s) | 0.63 s (32x) | 27.8 tok/s |
 
