@@ -2,7 +2,7 @@
 /**
  * agent.ts — a minimal terminal coding agent (REPL) built on LocalLLM.
  *
- * Everything runs locally against Ollama. Streaming output, conversation
+ * Everything runs locally against oMLX. Streaming output, conversation
  * history, file inlining, and a handful of slash commands.
  *
  * Usage:
@@ -13,7 +13,7 @@
  *   /add <path>          add a file to the conversation
  *   /run <cmd>           run a shell command, feed its output back to the model
  *   /write <path>        write the last code block to <path> (asks y/N first)
- *   /model dense|moe     switch model (dense = reliable, moe = fast)
+ *   /model fast|quality|moe   switch model (fast = driver, quality = oQ6, moe = 35B-A3B)
  *   /reset               clear the conversation
  *   /save                save the transcript to a markdown file
  *   /help                show commands
@@ -148,8 +148,8 @@ class Agent {
       console.log(
         color(
           "yellow",
-          "Could not reach http://localhost:11434/v1 — is Ollama running?\n" +
-            "Start it with:  ollama serve   (then re-run, or run ./setup.sh)",
+          "Could not reach http://localhost:8000/v1 — is oMLX running?\n" +
+            "Start it with:  omlx start   (then re-run, or run ./setup.sh)",
         ),
       );
       process.exit(1);
@@ -174,13 +174,13 @@ class Agent {
   private printHelp(): void {
     console.log(
       color("bold", "\nLocal coding agent") +
-        color("dim", " — fully local via Ollama.\n") +
+        color("dim", " — fully local via oMLX.\n") +
         [
           "  @path           inline a file into your message",
           "  /add <path>     add a file to the conversation",
           "  /run <cmd>      run a command, feed output back to the model",
           "  /write <path>   write the last code block to <path>",
-          "  /model dense|moe   switch model",
+          "  /model fast|quality|moe   switch model",
           "  /reset          clear the conversation",
           "  /save           save the transcript",
           "  /help           show this help",
@@ -228,8 +228,8 @@ class Agent {
         break;
 
       case "/model": {
-        if (arg !== "dense" && arg !== "moe") {
-          console.log(color("yellow", "Usage: /model dense|moe"));
+        if (arg !== "fast" && arg !== "quality" && arg !== "moe") {
+          console.log(color("yellow", "Usage: /model fast|quality|moe"));
           break;
         }
         this.llm.use(arg as ModelKey);
